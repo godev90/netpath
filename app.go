@@ -145,20 +145,83 @@ func matchRoute(pattern, path string) (map[string]string, bool) {
 	return params, true
 }
 
-type Session interface {
-	Get(key string) any
-	Set(key string, value any)
-	Delete(key string)
-}
+var validSession map[SessionType]reflect.Type
 
+type SessionType uint
+type Session interface {
+	Identifier() string
+	Type() SessionType
+}
 type Context struct {
 	writer  http.ResponseWriter
 	request *http.Request
 	locale  errors.LanguageTag
 	Params  map[string]string
-	Session Session
+	session Session
 
 	httpStatus int
+}
+
+func RegisterSessionType(session Session) {
+	if session == nil {
+		panic(errors.ErrCannotBeNull)
+	}
+
+	if validSession == nil {
+		validSession = make(map[SessionType]reflect.Type)
+	}
+
+	modelType := reflect.TypeOf(session)
+	if modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+	}
+
+	existing, exists := validSession[session.Type()]
+	if exists {
+		if existing != modelType {
+			panic(errors.ErrDuplicateEntry)
+		}
+	}
+
+	validSession[session.Type()] = modelType
+}
+
+func (c *Context) FetchSession(dst any) error {
+	if c.session == nil {
+		return errors.ErrUnauthorized
+	}
+
+	if dst == nil {
+		return errors.ErrCannotBeNull
+	}
+
+	expectedType, ok := validSession[c.session.Type()]
+	if !ok {
+		return errors.ErrUnknownSession
+	}
+
+	dstVal := reflect.ValueOf(dst)
+	if dstVal.Kind() != reflect.Ptr || dstVal.IsNil() {
+		return errors.ErrTypeMismatch
+	}
+
+	dstElem := dstVal.Elem()
+	srcVal := reflect.ValueOf(c.session)
+
+	if srcVal.Type().Kind() == reflect.Ptr && srcVal.Type().Elem() != expectedType {
+		return errors.ErrTypeMismatch
+	}
+	if srcVal.Type().Kind() != reflect.Ptr && srcVal.Type() != expectedType {
+		return errors.ErrTypeMismatch
+	}
+
+	// Pastikan src bisa ditransfer ke dst
+	if !srcVal.Type().AssignableTo(dstElem.Type()) {
+		return errors.ErrTypeMismatch
+	}
+
+	dstElem.Set(srcVal)
+	return nil
 }
 
 func (c *Context) UseLocale(l errors.LanguageTag) {
