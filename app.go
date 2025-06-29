@@ -186,6 +186,14 @@ func RegisterSessionType(session Session) {
 	validSession[session.Type()] = modelType
 }
 
+func (c *Context) Session() Session {
+	return c.session
+}
+
+func (c *Context) SetSession(session Session) {
+	c.session = session
+}
+
 func (c *Context) FetchSession(dst any) error {
 	if c.session == nil {
 		return errors.ErrUnauthorized
