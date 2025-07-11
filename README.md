@@ -16,8 +16,9 @@
 ---
 
 ## 📦 Installation
-
+```bash
 go get github.com/godev90/netpath
+```
 
 ---
 
@@ -44,6 +45,7 @@ func main() {
 --- 
 
 ## 🔧 Middleware Example
+```go
 func loggingMiddleware(next netpath.HandlerFunc) netpath.HandlerFunc {
     return func(ctx *netpath.Context) error {
         fmt.Println("Before request")
@@ -54,6 +56,89 @@ func loggingMiddleware(next netpath.HandlerFunc) netpath.HandlerFunc {
 }
 
 app.Use(loggingMiddleware)
+```
+
+## 🗂 Session Support
+**NetPath** supports storing session information in the request context by implementing the Session interface.
+You can define your own session struct and attach it to the context using middleware.
+
+```go
+// this interface
+type SessionType uint
+
+type Session interface {
+    Identifier() string
+    Type() SessionType
+}
+```
+
+### Example
+```go
+const (
+    SessionTypeUser SessionType = iota
+    SessionTypeAdmin
+)
+
+type UserSession struct {
+    UserID string
+}
+
+func (s *UserSession) Identifier() string {
+    return s.UserID
+}
+
+func (s *UserSession) Type() SessionType {
+    return SessionTypeUser
+}
+```
+
+### Middleware Example
+Attach a session to the context using middleware:
+```go
+func sessionMiddleware(next netpath.HandlerFunc) netpath.HandlerFunc {
+    return func(ctx *netpath.Context) error {
+        session := &MySession{
+            UserID: "123",
+            Role:   SessionTypeAdmin,
+        }
+        ctx.SetSession(session)
+        return next(ctx)
+    }
+}
+
+app.Use(sessionMiddleware)
+```
+
+### Accessing Session in Handlers
+```go
+session := ctx.Session().(*MySession)
+fmt.Println("User ID:", session.Identifier())
+fmt.Println("Session Type:", session.Type())
+```
+
+---
+
+## 🔐 Registering a Session Type
+
+Before using a session in your application, you must register its type using the RegisterSessionType function. This ensures type safety and prevents conflicting session types for the same SessionType identifier.
+
+```go
+func RegisterSessionType(session Session)
+```
+
+Purpose
+- Ensures only one session struct is used for each SessionType
+- Panics if:
+  - The provided session is nil
+  - A different struct has already been registered for the same SessionType
+
+
+### Example 
+```go
+func init() {
+    RegisterSessionType(&MySession{})
+}
+```
 
 ---
 
