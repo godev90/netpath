@@ -3,7 +3,7 @@ module github.com/godev90/netpath
 go 1.23.4
 
 require (
-	github.com/godev90/validator v0.1.4
+	github.com/godev90/validator v0.1.7
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.0
 	gorm.io/gorm v1.30.0

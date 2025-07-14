@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/godev90/validator"
-	"github.com/godev90/validator/errors"
+	"github.com/godev90/validator/faults"
 )
 
 type HandlerFunc func(*Context) error
@@ -155,7 +155,7 @@ type Session interface {
 type Context struct {
 	writer  http.ResponseWriter
 	request *http.Request
-	locale  errors.LanguageTag
+	locale  faults.LanguageTag
 	Params  map[string]string
 	session Session
 
@@ -164,7 +164,7 @@ type Context struct {
 
 func RegisterSessionType(session Session) {
 	if session == nil {
-		panic(errors.ErrCannotBeNull)
+		panic(faults.ErrCannotBeNull)
 	}
 
 	if validSession == nil {
@@ -179,7 +179,7 @@ func RegisterSessionType(session Session) {
 	existing, exists := validSession[session.Type()]
 	if exists {
 		if existing != modelType {
-			panic(errors.ErrDuplicateEntry)
+			panic(faults.ErrConflict)
 		}
 	}
 
@@ -196,47 +196,47 @@ func (c *Context) SetSession(session Session) {
 
 func (c *Context) FetchSession(dst any) error {
 	if c.session == nil {
-		return errors.ErrUnauthorized
+		return faults.ErrUnauthorized
 	}
 
 	if dst == nil {
-		return errors.ErrCannotBeNull
+		return faults.ErrCannotBeNull
 	}
 
 	expectedType, ok := validSession[c.session.Type()]
 	if !ok {
-		return errors.ErrUnknownSession
+		return faults.ErrUnauthorized
 	}
 
 	dstVal := reflect.ValueOf(dst)
 	if dstVal.Kind() != reflect.Ptr || dstVal.IsNil() {
-		return errors.ErrTypeMismatch
+		return faults.ErrTypeMismatch
 	}
 
 	dstElem := dstVal.Elem()
 	srcVal := reflect.ValueOf(c.session)
 
 	if srcVal.Type().Kind() == reflect.Ptr && srcVal.Type().Elem() != expectedType {
-		return errors.ErrTypeMismatch
+		return faults.ErrTypeMismatch
 	}
 	if srcVal.Type().Kind() != reflect.Ptr && srcVal.Type() != expectedType {
-		return errors.ErrTypeMismatch
+		return faults.ErrTypeMismatch
 	}
 
 	// Pastikan src bisa ditransfer ke dst
 	if !srcVal.Type().AssignableTo(dstElem.Type()) {
-		return errors.ErrTypeMismatch
+		return faults.ErrTypeMismatch
 	}
 
 	dstElem.Set(srcVal)
 	return nil
 }
 
-func (c *Context) UseLocale(l errors.LanguageTag) {
+func (c *Context) UseLocale(l faults.LanguageTag) {
 	c.locale = l
 }
 
-func (c *Context) Locale() errors.LanguageTag {
+func (c *Context) Locale() faults.LanguageTag {
 	return c.locale
 }
 
@@ -267,7 +267,7 @@ func (c *Context) Success(data any) error {
 
 func (c *Context) Unauthorized(err error) error {
 	c.httpStatus = http.StatusUnauthorized
-	if er, ok := err.(*errors.Error); ok {
+	if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusUnauthorized, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
@@ -289,7 +289,7 @@ func (c *Context) Unauthorized(err error) error {
 
 func (c *Context) BadInput(err error) error {
 	c.httpStatus = http.StatusBadRequest
-	if ers, ok := err.(errors.Errors); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusBadRequest, map[string]any{
 			"code": http.StatusBadRequest,
 			"data": ers.LocalizedError(c.locale),
@@ -308,7 +308,7 @@ func (c *Context) BadInput(err error) error {
 
 func (c *Context) NotFound(err error) error {
 	c.httpStatus = http.StatusNotFound
-	if ers, ok := err.(errors.Errors); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusNotFound, map[string]any{
 			"code": http.StatusNotFound,
 			"data": ers.LocalizedError(c.locale),
@@ -327,7 +327,7 @@ func (c *Context) NotFound(err error) error {
 
 func (c *Context) Forbidden(err error) error {
 	c.httpStatus = http.StatusForbidden
-	if ers, ok := err.(errors.Errors); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusForbidden, map[string]any{
 			"code": http.StatusForbidden,
 			"data": ers.LocalizedError(c.locale),
@@ -346,7 +346,7 @@ func (c *Context) Forbidden(err error) error {
 
 func (c *Context) TooManyRequest(err error) error {
 	c.httpStatus = http.StatusTooManyRequests
-	if ers, ok := err.(errors.Errors); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusTooManyRequests, map[string]any{
 			"code": http.StatusTooManyRequests,
 			"data": ers.LocalizedError(c.locale),
@@ -365,7 +365,7 @@ func (c *Context) TooManyRequest(err error) error {
 
 func (c *Context) Conflict(err error) error {
 	c.httpStatus = http.StatusConflict
-	if ers, ok := err.(errors.Errors); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusConflict, map[string]any{
 			"code": http.StatusConflict,
 			"data": ers.LocalizedError(c.locale),
@@ -384,7 +384,7 @@ func (c *Context) Conflict(err error) error {
 
 func (c *Context) NotAllowed(err error) error {
 	c.httpStatus = http.StatusMethodNotAllowed
-	if er, ok := err.(*errors.Error); ok {
+	if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusMethodNotAllowed, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
@@ -406,7 +406,7 @@ func (c *Context) NotAllowed(err error) error {
 
 func (c *Context) BadGateway(err error) error {
 	c.httpStatus = http.StatusBadGateway
-	if er, ok := err.(*errors.Error); ok {
+	if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusBadGateway, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
@@ -428,7 +428,7 @@ func (c *Context) BadGateway(err error) error {
 
 func (c *Context) Unavailable(err error) error {
 	c.httpStatus = http.StatusServiceUnavailable
-	if er, ok := err.(*errors.Error); ok {
+	if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusServiceUnavailable, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
@@ -450,7 +450,7 @@ func (c *Context) Unavailable(err error) error {
 
 func (c *Context) ServerError(err error) error {
 	c.httpStatus = http.StatusInternalServerError
-	if er, ok := err.(*errors.Error); ok {
+	if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusInternalServerError, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
