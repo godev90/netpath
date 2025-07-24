@@ -42,7 +42,7 @@ func CORS(config CORSConfig) path.MiddlewareFunc {
 			// }
 
 			for _, v := range config.AllowOrigins {
-				w.Header().Set("Access-Control-Allow-Origin", v)
+				w.Header().Add("Access-Control-Allow-Origin", v)
 			}
 
 			w.Header().Set("Access-Control-Allow-Methods", allowMethods)
