@@ -34,11 +34,15 @@ func CORS(config CORSConfig) path.MiddlewareFunc {
 			w := ctx.Writer()
 			r := ctx.Request()
 
-			origin := r.Header.Get("Origin")
-			if origin != "" {
-				if contains(config.AllowOrigins, "*") || contains(config.AllowOrigins, origin) {
-					w.Header().Set("Access-Control-Allow-Origin", origin)
-				}
+			// origin := r.Header.Get("Origin")
+			// if origin != "" {
+			// 	if contains(config.AllowOrigins, "*") || contains(config.AllowOrigins, origin) {
+
+			// 	}
+			// }
+
+			for _, v := range config.AllowOrigins {
+				w.Header().Set("Access-Control-Allow-Origin", v)
 			}
 
 			w.Header().Set("Access-Control-Allow-Methods", allowMethods)
