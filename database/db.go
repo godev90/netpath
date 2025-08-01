@@ -1,97 +1,115 @@
-package database
+package tools
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
 	"time"
 
-	"gorm.io/driver/mysql"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
-type Config struct {
-	Driver   string
-	Host     string
-	Port     string
-	User     string
-	Password string
-	Name     string
-}
+type (
+	DBConfig struct {
+		Driver   string
+		Host     string
+		Port     string
+		User     string
+		Password string
+		Name     string
 
-var (
-	connections = make(map[string]*gorm.DB)
-	configs     = make(map[string]Config)
-	mu          sync.RWMutex
-)
-
-func Connect(name string) {
-	mu.Lock()
-	defer mu.Unlock()
-
-	if _, exists := connections[name]; exists {
-		return // already connected
+		MaxOpenConns    int
+		MaxIdleConns    int
+		ConnMaxLifetime time.Duration
 	}
 
-	cfg, ok := configs[name]
-	if !ok {
-		log.Fatalf("No DB config found for name: %s", name)
+	dbPool struct {
+		pool map[string]*sql.DB
+		mu   sync.RWMutex
+	}
+)
+
+var (
+	pool *dbPool
+	once sync.Once
+)
+
+func Pool() *dbPool {
+	once.Do(func() {
+		pool = &dbPool{
+			pool: make(map[string]*sql.DB),
+		}
+	})
+
+	return pool
+}
+
+func (dbc *dbPool) Connect(alias string, cfg DBConfig) error {
+	dbc.mu.Lock()
+	defer dbc.mu.Unlock()
+
+	if _, exists := dbc.pool[alias]; exists {
+		return nil
 	}
 
 	var dsn string
-	var dialector gorm.Dialector
-
 	switch cfg.Driver {
 	case "mysql":
 		dsn = fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
 			cfg.User, cfg.Password, cfg.Host, cfg.Port, cfg.Name)
-		dialector = mysql.Open(dsn)
 
 	case "postgres":
 		dsn = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 			cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name)
-		dialector = postgres.Open(dsn)
 
 	default:
 		log.Fatalf("Unsupported DB driver: %s", cfg.Driver)
-		return
 	}
 
-	db, err := gorm.Open(dialector, &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Warn),
-	})
+	db, err := sql.Open(cfg.Driver, dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to [%s] database: %v", name, err)
+		return err
 	}
 
-	sqlDB, err := db.DB()
-	if err != nil {
-		log.Fatalf("Failed to get sql.DB from gorm DB: %v", err)
+	if err := db.Ping(); err != nil {
+		return err
 	}
 
-	sqlDB.SetMaxOpenConns(25)
-	sqlDB.SetMaxIdleConns(5)
-	sqlDB.SetConnMaxLifetime(1 * time.Hour)
+	if cfg.MaxOpenConns > 0 {
+		db.SetMaxOpenConns(cfg.MaxOpenConns)
+	} else {
+		db.SetMaxOpenConns(25)
+	}
 
-	connections[name] = db
-	log.Printf("Connected to [%s] database", name)
+	if cfg.MaxIdleConns > 0 {
+		db.SetMaxIdleConns(cfg.MaxIdleConns)
+	} else {
+		db.SetMaxIdleConns(5)
+	}
+
+	if cfg.ConnMaxLifetime > 0 {
+		db.SetConnMaxLifetime(cfg.ConnMaxLifetime)
+	} else {
+		db.SetConnMaxLifetime(1 * time.Hour)
+	}
+
+	dbc.pool[alias] = db
+	log.Printf("Connected to [%s] database", alias)
+
+	return nil
 }
 
-func Get(name string) *gorm.DB {
-	mu.RLock()
-	defer mu.RUnlock()
+func (dbc *dbPool) Get(name string) (*sql.DB, error) {
+	dbc.mu.RLock()
+	defer dbc.mu.RUnlock()
 
-	db, ok := connections[name]
+	db, ok := dbc.pool[name]
 	if !ok {
-		log.Fatalf("No DB connection found with name: %s", name)
+		return nil, errors.New("no alias found")
 	}
-	return db
-}
 
-func AddConnection(name string, config Config) {
-	mu.Lock()
-	defer mu.Unlock()
-	configs[name] = config
+	return db, nil
 }
