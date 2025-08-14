@@ -280,7 +280,7 @@ func (c *Context) Unauthorized(err error) error {
 	c.JSON(http.StatusUnauthorized, map[string]any{
 		"code": http.StatusUnauthorized,
 		"data": map[string]any{
-			"description": fmt.Sprintf("unauthorized error: %s", err.Error()),
+			"description": err.Error(),
 		},
 	})
 
@@ -298,7 +298,7 @@ func (c *Context) BadInput(err error) error {
 		c.JSON(http.StatusBadRequest, map[string]any{
 			"code": http.StatusBadRequest,
 			"data": map[string]any{
-				"description": fmt.Sprintf("bad input: %s", err.Error()),
+				"description": err.Error(),
 			},
 		})
 	}
@@ -317,7 +317,7 @@ func (c *Context) NotFound(err error) error {
 		c.JSON(http.StatusNotFound, map[string]any{
 			"code": http.StatusNotFound,
 			"data": map[string]any{
-				"description": fmt.Sprintf("not found: %s", err.Error()),
+				"description": err.Error(),
 			},
 		})
 	}
@@ -336,7 +336,7 @@ func (c *Context) Forbidden(err error) error {
 		c.JSON(http.StatusForbidden, map[string]any{
 			"code": http.StatusForbidden,
 			"data": map[string]any{
-				"description": fmt.Sprintf("forbidden: %s", err.Error()),
+				"description": err.Error(),
 			},
 		})
 	}
@@ -355,7 +355,7 @@ func (c *Context) TooManyRequest(err error) error {
 		c.JSON(http.StatusTooManyRequests, map[string]any{
 			"code": http.StatusTooManyRequests,
 			"data": map[string]any{
-				"description": fmt.Sprintf("too many request: %s", err.Error()),
+				"description": err.Error(),
 			},
 		})
 	}
@@ -374,7 +374,7 @@ func (c *Context) Conflict(err error) error {
 		c.JSON(http.StatusConflict, map[string]any{
 			"code": http.StatusConflict,
 			"data": map[string]any{
-				"description": fmt.Sprintf("conflict: %s", err.Error()),
+				"description": err.Error(),
 			},
 		})
 	}
@@ -397,7 +397,7 @@ func (c *Context) NotAllowed(err error) error {
 	c.JSON(http.StatusMethodNotAllowed, map[string]any{
 		"code": fmt.Sprintf("%d", http.StatusMethodNotAllowed),
 		"error": map[string]any{
-			"description": fmt.Sprintf("not allowed: %s", err.Error()),
+			"description": err.Error(),
 		},
 	})
 
@@ -419,7 +419,7 @@ func (c *Context) BadGateway(err error) error {
 	c.JSON(c.httpStatus, map[string]any{
 		"code": fmt.Sprintf("%d", http.StatusBadGateway),
 		"error": map[string]any{
-			"description": fmt.Sprintf("bad gateway: %s", err.Error()),
+			"description": err.Error(),
 		},
 	})
 
@@ -441,7 +441,7 @@ func (c *Context) Unavailable(err error) error {
 	c.JSON(c.httpStatus, map[string]any{
 		"code": fmt.Sprintf("%d", http.StatusServiceUnavailable),
 		"error": map[string]any{
-			"description": fmt.Sprintf("service unavailable: %s", err.Error()),
+			"description": err.Error(),
 		},
 	})
 
@@ -463,7 +463,7 @@ func (c *Context) ServerError(err error) error {
 	c.JSON(c.httpStatus, map[string]any{
 		"code": fmt.Sprintf("%d", http.StatusInternalServerError),
 		"error": map[string]any{
-			"description": fmt.Sprintf("server error: %s", err.Error()),
+			"description": err.Error(),
 		},
 	})
 
