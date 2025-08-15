@@ -2,7 +2,6 @@ package app
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"mime/multipart"
 	"net/http"
@@ -267,22 +266,25 @@ func (c *Context) Success(data any) error {
 
 func (c *Context) Unauthorized(err error) error {
 	c.httpStatus = http.StatusUnauthorized
-	if er, ok := err.(faults.Error); ok {
+	if ers, ok := err.(faults.Errors); ok {
+		c.JSON(http.StatusUnauthorized, map[string]any{
+			"code": http.StatusUnauthorized,
+			"data": ers.LocalizedError(c.locale),
+		})
+	} else if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusUnauthorized, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
 				"description": er.LocalizedError(c.locale),
 			}})
-
-		return err
+	} else {
+		c.JSON(http.StatusUnauthorized, map[string]any{
+			"code": http.StatusUnauthorized,
+			"data": map[string]any{
+				"description": err.Error(),
+			},
+		})
 	}
-
-	c.JSON(http.StatusUnauthorized, map[string]any{
-		"code": http.StatusUnauthorized,
-		"data": map[string]any{
-			"description": err.Error(),
-		},
-	})
 
 	return err
 }
@@ -293,6 +295,13 @@ func (c *Context) BadInput(err error) error {
 		c.JSON(http.StatusBadRequest, map[string]any{
 			"code": http.StatusBadRequest,
 			"data": ers.LocalizedError(c.locale),
+		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusBadRequest, map[string]any{
+			"code": ers.Code(),
+			"data": map[string]any{
+				"description": ers.LocalizedError(c.locale),
+			},
 		})
 	} else {
 		c.JSON(http.StatusBadRequest, map[string]any{
@@ -313,6 +322,13 @@ func (c *Context) NotFound(err error) error {
 			"code": http.StatusNotFound,
 			"data": ers.LocalizedError(c.locale),
 		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusNotFound, map[string]any{
+			"code": ers.Code(),
+			"data": map[string]any{
+				"description": ers.LocalizedError(c.locale),
+			},
+		})
 	} else {
 		c.JSON(http.StatusNotFound, map[string]any{
 			"code": http.StatusNotFound,
@@ -331,6 +347,13 @@ func (c *Context) Forbidden(err error) error {
 		c.JSON(http.StatusForbidden, map[string]any{
 			"code": http.StatusForbidden,
 			"data": ers.LocalizedError(c.locale),
+		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusForbidden, map[string]any{
+			"code": ers.Code(),
+			"data": map[string]any{
+				"description": ers.LocalizedError(c.locale),
+			},
 		})
 	} else {
 		c.JSON(http.StatusForbidden, map[string]any{
@@ -351,6 +374,13 @@ func (c *Context) TooManyRequest(err error) error {
 			"code": http.StatusTooManyRequests,
 			"data": ers.LocalizedError(c.locale),
 		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusTooManyRequests, map[string]any{
+			"code": ers.Code(),
+			"data": map[string]any{
+				"description": ers.LocalizedError(c.locale),
+			},
+		})
 	} else {
 		c.JSON(http.StatusTooManyRequests, map[string]any{
 			"code": http.StatusTooManyRequests,
@@ -370,6 +400,13 @@ func (c *Context) Conflict(err error) error {
 			"code": http.StatusConflict,
 			"data": ers.LocalizedError(c.locale),
 		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusConflict, map[string]any{
+			"code": ers.Code(),
+			"data": map[string]any{
+				"description": ers.LocalizedError(c.locale),
+			},
+		})
 	} else {
 		c.JSON(http.StatusConflict, map[string]any{
 			"code": http.StatusConflict,
@@ -384,51 +421,64 @@ func (c *Context) Conflict(err error) error {
 
 func (c *Context) NotAllowed(err error) error {
 	c.httpStatus = http.StatusMethodNotAllowed
-	if er, ok := err.(faults.Error); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusMethodNotAllowed, map[string]any{
-			"code": er.Code(),
+			"code": http.StatusMethodNotAllowed,
+			"data": ers.LocalizedError(c.locale),
+		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusMethodNotAllowed, map[string]any{
+			"code": ers.Code(),
 			"data": map[string]any{
-				"description": er.LocalizedError(c.locale),
-			}})
-
-		return err
+				"description": ers.LocalizedError(c.locale),
+			},
+		})
+	} else {
+		c.JSON(http.StatusMethodNotAllowed, map[string]any{
+			"code": http.StatusMethodNotAllowed,
+			"error": map[string]any{
+				"description": err.Error(),
+			},
+		})
 	}
-
-	c.JSON(http.StatusMethodNotAllowed, map[string]any{
-		"code": fmt.Sprintf("%d", http.StatusMethodNotAllowed),
-		"error": map[string]any{
-			"description": err.Error(),
-		},
-	})
 
 	return err
 }
 
 func (c *Context) BadGateway(err error) error {
 	c.httpStatus = http.StatusBadGateway
-	if er, ok := err.(faults.Error); ok {
+	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusBadGateway, map[string]any{
-			"code": er.Code(),
+			"code": http.StatusBadGateway,
+			"data": ers.LocalizedError(c.locale),
+		})
+	} else if ers, ok := err.(faults.Error); ok {
+		c.JSON(http.StatusBadGateway, map[string]any{
+			"code": ers.Code(),
 			"data": map[string]any{
-				"description": er.LocalizedError(c.locale),
-			}})
-
-		return err
+				"description": ers.LocalizedError(c.locale),
+			},
+		})
+	} else {
+		c.JSON(c.httpStatus, map[string]any{
+			"code": http.StatusBadGateway,
+			"error": map[string]any{
+				"description": err.Error(),
+			},
+		})
 	}
-
-	c.JSON(c.httpStatus, map[string]any{
-		"code": fmt.Sprintf("%d", http.StatusBadGateway),
-		"error": map[string]any{
-			"description": err.Error(),
-		},
-	})
 
 	return err
 }
 
 func (c *Context) Unavailable(err error) error {
 	c.httpStatus = http.StatusServiceUnavailable
-	if er, ok := err.(faults.Error); ok {
+	if ers, ok := err.(faults.Errors); ok {
+		c.JSON(http.StatusServiceUnavailable, map[string]any{
+			"code": http.StatusServiceUnavailable,
+			"data": ers.LocalizedError(c.locale),
+		})
+	} else if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusServiceUnavailable, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
@@ -436,21 +486,26 @@ func (c *Context) Unavailable(err error) error {
 			}})
 
 		return err
+	} else {
+		c.JSON(c.httpStatus, map[string]any{
+			"code": http.StatusServiceUnavailable,
+			"error": map[string]any{
+				"description": err.Error(),
+			},
+		})
 	}
-
-	c.JSON(c.httpStatus, map[string]any{
-		"code": fmt.Sprintf("%d", http.StatusServiceUnavailable),
-		"error": map[string]any{
-			"description": err.Error(),
-		},
-	})
 
 	return err
 }
 
 func (c *Context) ServerError(err error) error {
 	c.httpStatus = http.StatusInternalServerError
-	if er, ok := err.(faults.Error); ok {
+	if ers, ok := err.(faults.Errors); ok {
+		c.JSON(http.StatusInternalServerError, map[string]any{
+			"code": http.StatusInternalServerError,
+			"data": ers.LocalizedError(c.locale),
+		})
+	} else if er, ok := err.(faults.Error); ok {
 		c.JSON(http.StatusInternalServerError, map[string]any{
 			"code": er.Code(),
 			"data": map[string]any{
@@ -458,14 +513,14 @@ func (c *Context) ServerError(err error) error {
 			}})
 
 		return err
+	} else {
+		c.JSON(c.httpStatus, map[string]any{
+			"code": http.StatusInternalServerError,
+			"error": map[string]any{
+				"description": err.Error(),
+			},
+		})
 	}
-
-	c.JSON(c.httpStatus, map[string]any{
-		"code": fmt.Sprintf("%d", http.StatusInternalServerError),
-		"error": map[string]any{
-			"description": err.Error(),
-		},
-	})
 
 	return err
 }
