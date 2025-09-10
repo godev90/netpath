@@ -5,6 +5,7 @@ import (
 	"log"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -447,6 +448,7 @@ func (c *Context) NotAllowed(err error) error {
 
 func (c *Context) BadGateway(err error) error {
 	c.httpStatus = http.StatusBadGateway
+
 	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusBadGateway, map[string]any{
 			"code": http.StatusBadGateway,
@@ -500,6 +502,17 @@ func (c *Context) Unavailable(err error) error {
 
 func (c *Context) ServerError(err error) error {
 	c.httpStatus = http.StatusInternalServerError
+
+	if env := os.Getenv("ENVIRONMENT"); strings.ToLower(env) == "production" {
+		c.JSON(http.StatusInternalServerError, map[string]any{
+			"code": http.StatusInternalServerError,
+			"data": map[string]any{
+				"description": "internal service error",
+			}})
+
+		return err
+	}
+
 	if ers, ok := err.(faults.Errors); ok {
 		c.JSON(http.StatusInternalServerError, map[string]any{
 			"code": http.StatusInternalServerError,
@@ -516,7 +529,7 @@ func (c *Context) ServerError(err error) error {
 	} else {
 		c.JSON(c.httpStatus, map[string]any{
 			"code": http.StatusInternalServerError,
-			"error": map[string]any{
+			"data": map[string]any{
 				"description": err.Error(),
 			},
 		})
